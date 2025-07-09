@@ -71,6 +71,9 @@ module "phi_bucket" {
   # Notification settings
   notification_email = var.notification_email
   
+  # Explicitly disable SNS notifications to avoid count error
+  enable_sns_notifications = false
+  
   # Tags
   tags = local.common_tags
 }

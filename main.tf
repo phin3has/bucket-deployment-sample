@@ -10,11 +10,46 @@ terraform {
       version = "~> 5.0"
     }
   }
+  
+  # Backend configuration for state management
+  backend "s3" {
+    bucket = "mvp-phi-storage-terraform-state"
+    key    = "state/terraform.tfstate"
+    region = "us-east-1"
+  }
 }
 
 # Configure AWS Provider with your region
 provider "aws" {
   region = var.aws_region
+}
+
+# S3 bucket for Terraform state (standard bucket, not using PHI module)
+resource "aws_s3_bucket" "terraform_state" {
+  bucket = "mvp-phi-storage-terraform-state"
+  
+  tags = merge(local.common_tags, {
+    Name = "Terraform State Bucket"
+  })
+}
+
+# Enable versioning for state bucket
+resource "aws_s3_bucket_versioning" "terraform_state" {
+  bucket = aws_s3_bucket.terraform_state.id
+  
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+# Block public access for state bucket
+resource "aws_s3_bucket_public_access_block" "terraform_state" {
+  bucket = aws_s3_bucket.terraform_state.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 # Variables for customization

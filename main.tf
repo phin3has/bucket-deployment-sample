@@ -61,10 +61,6 @@ module "phi_bucket" {
   bucket_name = local.bucket_name
   environment = var.environment
   
-  # Security settings (using defaults for MVP)
-  enable_encryption = true
-  enable_versioning = true
-  
   # Notification settings
   notification_email = var.notification_email
   

@@ -16,6 +16,22 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         
+      - name: Create state bucket if needed
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          # Check if bucket exists
+          if ! aws s3api head-bucket --bucket mvp-phi-storage-terraform-state 2>/dev/null; then
+            echo "State bucket does not exist. Creating it..."
+            cd ${{ github.workspace }}
+            terraform init
+            terraform apply -auto-approve -target=aws_s3_bucket.terraform_state -target=aws_s3_bucket_versioning.terraform_state -target=aws_s3_bucket_public_access_block.terraform_state -target=aws_s3_bucket_server_side_encryption_configuration.terraform_state bootstrap-state.tf
+          else
+            echo "State bucket already exists"
+          fi
+          
       - name: Terraform Init
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -27,9 +43,4 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
-        run: |
-          terraform apply -auto-approve || {
-            echo "Terraform apply failed. Running terraform show to debug:"
-            terraform show
-            exit 1
-          }
+        run: terraform apply -auto-approve

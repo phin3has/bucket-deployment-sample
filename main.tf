@@ -55,7 +55,7 @@ locals {
 
 # PHI S3 Bucket Module
 module "phi_bucket" {
-  source  = "github.com/phin3has/PHI-s3-bucket?ref=1.0.0"
+  source  = "github.com/phin3has/PHI-s3-bucket?ref=1.0.2"
   
   # Basic bucket configuration
   bucket_name = local.bucket_name

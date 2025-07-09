@@ -25,9 +25,14 @@ jobs:
           # Check if bucket exists
           if ! aws s3api head-bucket --bucket mvp-phi-storage-terraform-state 2>/dev/null; then
             echo "State bucket does not exist. Creating it..."
-            cd ${{ github.workspace }}
+            # Create a temporary directory for bootstrap
+            mkdir -p bootstrap-temp
+            cp bootstrap-state.tf bootstrap-temp/
+            cd bootstrap-temp
             terraform init
-            terraform apply -auto-approve -target=aws_s3_bucket.terraform_state -target=aws_s3_bucket_versioning.terraform_state -target=aws_s3_bucket_public_access_block.terraform_state -target=aws_s3_bucket_server_side_encryption_configuration.terraform_state bootstrap-state.tf
+            terraform apply -auto-approve
+            cd ..
+            rm -rf bootstrap-temp
           else
             echo "State bucket already exists"
           fi

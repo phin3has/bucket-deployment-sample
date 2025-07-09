@@ -78,14 +78,3 @@ output "bucket_arn" {
   description = "The ARN of the PHI S3 bucket"
   value       = module.phi_bucket.bucket_arn
 }
-
-output "bucket_region" {
-  description = "The region of the PHI S3 bucket"
-  value       = module.phi_bucket.bucket_region
-}
-
-# Optional: Output for bucket access point if available
-output "access_point" {
-  description = "S3 Access Point for the bucket"
-  value       = try(module.phi_bucket.access_point_arn, "Not configured")
-}

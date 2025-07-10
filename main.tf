@@ -71,12 +71,15 @@ locals {
 
 # PHI S3 Bucket Module - Basic Configuration
 module "phi_bucket" {
-  source = "github.com/phin3has/PHI-s3-bucket//modules/s3-phi-bucket?ref=v1.1.1"
+  source = "github.com/phin3has/PHI-s3-bucket//modules/s3-phi-bucket?ref=v1.1.2"
   
   # Required parameters
   bucket_name        = local.bucket_name
   environment        = var.environment
   notification_email = var.notification_email
+  
+  # Replication is now disabled by default (v1.1.2)
+  # No need to configure replica provider for MVP
   
   # Tags
   tags = local.common_tags

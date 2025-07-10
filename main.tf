@@ -31,6 +31,13 @@ provider "aws" {
   region = var.aws_region
 }
 
+# Replica provider (required by module even when replication is disabled)
+# This can point to the same region for MVP
+provider "aws" {
+  alias  = "replica"
+  region = var.aws_region
+}
+
 # Variables for customization
 variable "aws_region" {
   description = "AWS region for the S3 bucket"
@@ -83,6 +90,12 @@ module "phi_bucket" {
   
   # Tags
   tags = local.common_tags
+  
+  # Provider configuration
+  providers = {
+    aws         = aws
+    aws.replica = aws.replica
+  }
 }
 
 # Outputs for reference

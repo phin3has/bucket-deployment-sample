@@ -87,14 +87,8 @@ module "new_secure_bucket_with_lock" {
   
   # Enable object lock
   enable_object_lock = true
-  object_lock_configuration = {
-    rule = {
-      default_retention = {
-        mode = "COMPLIANCE"
-        days = 30
-      }
-    }
-  }
+  # Note: Object lock retention settings may need to be configured separately
+  # after bucket creation, depending on module support
   
   trusted_principal_arns = [
     "arn:aws:iam::944737299127:role/ApplicationRole"

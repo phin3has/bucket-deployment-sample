@@ -13,7 +13,7 @@ This configuration manages two S3 buckets:
 
 2. **New Secure Bucket with Object Lock** (`my-secure-bucket-with-object-lock`)
    - Uses a custom KMS key with rotation enabled
-   - Object lock enabled with 30-day COMPLIANCE retention
+   - Object lock enabled (retention settings to be configured post-creation)
    - Designed for immutable data storage
 
 ## Prerequisites
@@ -58,9 +58,9 @@ This configuration manages two S3 buckets:
 - Alias: `alias/my-secure-bucket-key`
 
 ### Object Lock Configuration
-- Mode: COMPLIANCE (cannot be bypassed)
-- Retention: 30 days
-- Applied by default to all objects
+- Object Lock is enabled on the bucket
+- Retention settings should be configured post-creation
+- Consider using COMPLIANCE mode for regulatory requirements
 
 ### Replication
 - Primary region: us-east-1

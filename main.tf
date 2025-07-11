@@ -1,9 +1,8 @@
-# main.tf - Simple PHI S3 Bucket Configuration for MVP
-# Using PHI-s3-bucket module v1.1.1
+# main.tf - PHI S3 Bucket Configuration with Module v1.2.3
 
 # Configure the AWS Provider
 terraform {
-  required_version = ">= 1.5.0"
+  required_version = ">= 1.0"
   
   required_providers {
     aws = {
@@ -12,129 +11,134 @@ terraform {
     }
   }
   
-  # Backend configuration for remote state storage
+  # Backend configuration for state management
   backend "s3" {
     bucket = "mvp-phi-storage-terraform-state"
-    key    = "phi-s3-bucket/terraform.tfstate"
-    region = "us-east-1"  # Update this to match your bucket's region
-    
-    # Optional but recommended for state locking
-    # dynamodb_table = "terraform-state-lock"
-    
-    # Enable encryption
-    encrypt = true
+    key    = "state/terraform.tfstate"
+    region = "us-east-1"
   }
 }
 
-# Configure AWS Provider with your region
+# Primary provider configuration
 provider "aws" {
-  region = var.aws_region
+  region = "us-east-1"
 }
 
-# Replica provider (required by module even when replication is disabled)
-# This can point to the same region for MVP
+# Replica provider for replication
 provider "aws" {
   alias  = "replica"
-  region = var.aws_region
+  region = "us-west-2"
 }
 
-# Variables for customization
-variable "aws_region" {
-  description = "AWS region for the S3 bucket"
-  type        = string
-  default     = "us-east-1"
-}
+# KMS key for the new bucket
+resource "aws_kms_key" "my_bucket_key" {
+  description             = "KMS key for my-secure-bucket"
+  deletion_window_in_days = 10
+  enable_key_rotation     = true
 
-variable "environment" {
-  description = "Environment name (e.g., dev, staging, prod)"
-  type        = string
-  default     = "dev"
-}
-
-variable "project_name" {
-  description = "Project name for tagging and naming"
-  type        = string
-  default     = "mvp-healthcare"
-}
-
-variable "notification_email" {
-  description = "Email for security notifications"
-  type        = string
-  default     = "security@example.com"
-}
-
-# Local values for consistent naming
-locals {
-  bucket_name = "${var.project_name}-${var.environment}-phi-data"
-  
-  common_tags = {
-    Environment           = var.environment
-    Project              = var.project_name
-    ManagedBy            = "Terraform"
-    Purpose              = "PHI-Data-Storage"
-    DataClassification   = "PHI"
+  tags = {
+    Name        = "my-secure-bucket-key"
+    Environment = "prod"
   }
 }
 
-# PHI S3 Bucket Module - Basic Configuration
-module "phi_bucket" {
-  source = "github.com/phin3has/PHI-s3-bucket//modules/s3-phi-bucket?ref=v1.1.2"
+resource "aws_kms_alias" "my_bucket_key_alias" {
+  name          = "alias/my-secure-bucket-key"
+  target_key_id = aws_kms_key.my_bucket_key.key_id
+}
+
+# Update existing bucket to use module version v1.2.3
+module "existing_secure_bucket" {
+  source  = "github.com/phin3has/PHI-s3-bucket?ref=v1.2.3"
   
-  # Required parameters
-  bucket_name = local.bucket_name
-  environment = var.environment
+  bucket_name = "my-secure-data-bucket"
+  environment = "prod"
   
-  # Replication is now disabled by default (v1.1.2)
-  # No need to configure replica provider for MVP
+  # Specify trusted IAM principals
+  trusted_principal_arns = [
+    "arn:aws:iam::944737299127:role/DataProcessingRole",
+    "arn:aws:iam::944737299127:user/data-scientist"
+  ]
   
-  # Tags
-  tags = local.common_tags
+  # Enable replication to us-west-2
+  enable_replication = true
+  replication_region = "us-west-2"
   
-  # Provider configuration
+  tags = {
+    Project    = "DataLake"
+    CostCenter = "Engineering"
+  }
+  
   providers = {
     aws         = aws
     aws.replica = aws.replica
   }
 }
 
-# Outputs for reference
-output "bucket_id" {
-  description = "The ID of the PHI S3 bucket"
-  value       = try(module.phi_bucket.bucket_id, "Not available")
+# New bucket with custom KMS key and object lock
+module "new_secure_bucket_with_lock" {
+  source  = "github.com/phin3has/PHI-s3-bucket?ref=v1.2.3"
+  
+  bucket_name = "my-secure-bucket-with-object-lock"
+  environment = "prod"
+  
+  # Use the KMS key created above
+  kms_key_arn = aws_kms_key.my_bucket_key.arn
+  
+  # Enable object lock
+  enable_object_lock = true
+  object_lock_configuration = {
+    rule = {
+      default_retention = {
+        mode = "COMPLIANCE"
+        days = 30
+      }
+    }
+  }
+  
+  trusted_principal_arns = [
+    "arn:aws:iam::944737299127:role/ApplicationRole"
+  ]
+  
+  tags = {
+    Project     = "SecureStorage"
+    Environment = "prod"
+    Feature     = "ObjectLock"
+  }
+  
+  providers = {
+    aws         = aws
+    aws.replica = aws.replica
+  }
 }
 
-output "bucket_arn" {
-  description = "The ARN of the PHI S3 bucket"
-  value       = try(module.phi_bucket.bucket_arn, "Not available")
+# Outputs
+output "existing_bucket_id" {
+  description = "The ID of the existing updated bucket"
+  value       = module.existing_secure_bucket.bucket_id
 }
 
-output "bucket_name" {
-  description = "The name of the PHI S3 bucket"
-  value       = local.bucket_name
+output "existing_bucket_arn" {
+  description = "The ARN of the existing updated bucket"
+  value       = module.existing_secure_bucket.bucket_arn
 }
 
-# Optional: README content
-output "next_steps" {
-  description = "Next steps for using the bucket"
-  value = <<EOF
-PHI S3 Bucket created successfully!
+output "new_bucket_id" {
+  description = "The ID of the new bucket with object lock"
+  value       = module.new_secure_bucket_with_lock.bucket_id
+}
 
-Next steps:
-1. Update the notification_email to receive security alerts
-2. Configure IAM roles/users for bucket access
-3. Review the Security Hub findings for compliance
-4. Set up monitoring dashboards in CloudWatch
+output "new_bucket_arn" {
+  description = "The ARN of the new bucket with object lock"
+  value       = module.new_secure_bucket_with_lock.bucket_arn
+}
 
-Important: This bucket is configured for PHI data storage with:
-- Encryption at rest (KMS)
-- Versioning enabled
-- Access logging
-- HIPAA compliance controls
-- Multi-region replication (if enabled in module)
+output "kms_key_id" {
+  description = "The ID of the KMS key created for the new bucket"
+  value       = aws_kms_key.my_bucket_key.id
+}
 
-For production use, consider:
-- Enabling cross-region replication
-- Setting up S3 Access Points for different teams
-- Configuring lifecycle policies for cost optimization
-EOF
+output "kms_key_arn" {
+  description = "The ARN of the KMS key created for the new bucket"
+  value       = aws_kms_key.my_bucket_key.arn
 }
